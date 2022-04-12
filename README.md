@@ -2,6 +2,9 @@
 A Simple Web3 based rewards system for final semester project.
 
 
+# ERC 20 standard implementation
+this branch was a precursor to the current ERC20[https://github.com/titanventura/rewards-system-web3/tree/erc20] implementation.
+
 # local setup
 
 * Install Ganache (A development blockchain).
@@ -16,7 +19,5 @@ A Simple Web3 based rewards system for final semester project.
 * Docker setup of Ganache or Geth (Go Ethereum Client).
 * Implementing list balances API.
 * Integrating with final year project web system.
-* Docker set-up on raspberry pi.
 * Moving BlockChain parameters into secrets file (or) accessing all those params from Database of the web app.
 * add `require(msg.sender == webAppController, "Invalid access")` to contract functions to ensure SC (Smart Contract) access.
-* possible conversion to ERC-20 token. (Barely necessary)
