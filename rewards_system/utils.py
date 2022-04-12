@@ -4,4 +4,7 @@ def generate_address():
     priv = secrets.token_hex(32)
     private_key = "0x" + priv
     account = Account.from_key(private_key)
-    return account.address
+    return {
+        'private_key': private_key,
+        'address': account.address
+    }

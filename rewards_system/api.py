@@ -1,19 +1,17 @@
 from web3 import Web3
-from . import utils
 
 
 class RewardSystem:
 
     def setup(self, bc_url, sc_addr, sc_abi, owner_addr=None, *args, **kwargs):
         self.w3 = Web3(Web3.HTTPProvider(bc_url))
+        from web3.middleware import geth_poa_middleware
+        self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         self.contract = self.w3.eth.contract(address=sc_addr, abi=sc_abi)
         self.owner = owner_addr
 
     def __init__(self, bc_url, sc_addr, sc_abi, owner_addr=None, *args, **kwargs):
         self.setup(bc_url, sc_addr, sc_abi, owner_addr, *args, **kwargs)
-
-    def generate_address(self):
-        return utils.generate_address()
 
     def balance(self, user):
         return self.contract.functions.balanceOf(user).call()
@@ -23,35 +21,41 @@ class RewardSystem:
             'from': self.owner
         }
 
-    def update_balance(self, user, amount, to_increase):
+    def increase_balance(self, user, amount):
+        tx_hash = self.contract.functions.mint(
+            user, amount).transact(self.tx_config())
+        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        return receipt
+
+    def decrease_balance(self, user, user_priv_key, amount):
 
         exception_str = "Unable to update balance"
 
         init_bal = self.balance(user)
 
-        upd_bal_func = self.contract.functions.increaseAsset if to_increase else self.contract.functions.decreaseAsset
+        burn_func_call = self.contract.functions.burn(amount)
 
-        upd_bal_func = upd_bal_func(
-            user,
-            amount
-        )
+        tx = burn_func_call.buildTransaction({
+            'chainId': self.w3.eth.chain_id,
+            'gas': 1000000,
+            'gasPrice': self.w3.toWei(100, 'gwei'),
+            'nonce': self.w3.eth.get_transaction_count(user),
+            # 'gasLimit': Web3.toHex(100000),
+            # 'nonce': self.w3.eth.getBlock("latest"),
+            'from': user
+        })
 
-        upd_bal_res = upd_bal_func.call()
+        from eth_account import Account
 
-        if not upd_bal_res:
-            raise Exception(exception_str)
+        signed_tx = Account.sign_transaction(tx, user_priv_key)
 
-        tx_hash = upd_bal_func.transact(self.tx_config())
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-        tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash)
+        tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
 
-        latest_bal = self.balance(user)
+        final_bal = self.balance(user)
 
-        upd_amt = amount if to_increase else -amount
-
-        if init_bal + upd_amt != latest_bal:
+        if init_bal - amount != final_bal:
             raise Exception(exception_str)
 
         return tx_receipt
-
-
